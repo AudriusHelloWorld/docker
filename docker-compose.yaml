@@ -1,0 +1,73 @@
+version: '3.8'
+services:
+  nginx:
+    build:
+      context: ./docker/nginx
+      dockerfile: Dockerfile
+    image: server/nginx
+    container_name: webserver
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./www:/var/www
+      - ./docker/nginx/servers:/etc/nginx/conf.d/
+      - logs-data:/var/log
+    networks:
+      - localnet
+    depends_on:
+      - api
+
+
+  api:
+    build:
+      context: ./docker/php
+      dockerfile: Dockerfile
+    container_name: api
+    restart: unless-stopped
+    volumes:
+      - ./www:/var/www
+    depends_on:
+      - mariadb
+    networks:
+      - localnet
+
+  mariadb:
+    image: mariadb:10.7.3
+    container_name: mariadb_container
+    command: "--default-authentication-plugin=mysql_native_password --log-bin=mariadb-data"
+    restart: unless-stopped
+    ports:
+      - '3306:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      TZ: Europe/Vilnius
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    networks:
+      - localnet
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    restart: unless-stopped
+    ports:
+      - '9100:80'
+    environment:
+      PMA_HOST: mariadb
+      TZ: Europe/Vilnius
+      APACHE_RUN_DIR: /var/lib/apache/runtime
+    depends_on:
+      - mariadb
+    networks:
+      - localnet
+
+networks:
+  localnet:
+    ipam:
+      config:
+        - subnet: 192.168.2.0/24
+
+volumes:
+  mariadb-data:
+  logs-data:
